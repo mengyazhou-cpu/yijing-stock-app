@@ -1,7 +1,6 @@
 import streamlit as st
 import datetime
-import lunarcalendar # 需要 pip install lunarcalendar
-from sxtwl import Lunar # 备选，或者直接用简单算法，这里为了通用性使用简化算法模拟易经逻辑
+
 
 # --- 页面配置 (适配手机) ---
 st.set_page_config(page_title="股市易经推演", page_icon="🔮", layout="centered")
@@ -132,5 +131,6 @@ with st.expander("查看个股策略"):
 st.divider()
 if st.button("🔄 刷新卦象"):
     st.rerun()
+
 
 st.info("💡 提示：点击浏览器分享按钮，选择“添加到主屏幕”，即可像App一样使用。")
