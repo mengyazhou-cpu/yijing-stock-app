@@ -1,172 +1,166 @@
 import streamlit as st
 import datetime
+import random
 
 # --- 页面设置 ---
-st.set_page_config(page_title="易经看盘 (白话版)", page_icon="📈", layout="centered")
+st.set_page_config(page_title="易经实盘 V3.0", page_icon="⚡", layout="centered")
 
-# --- 核心工具：北京时间 ---
+# --- 核心工具 ---
 def get_beijing_time():
     utc_now = datetime.datetime.utcnow()
     return utc_now + datetime.timedelta(hours=8)
 
-# --- 核心工具：通俗解读逻辑 ---
-def get_plain_interpretation(upper_code, lower_code):
+def get_interpretation(u_val, l_val, context="sector"):
     """
-    将五行生克直接翻译成股市术语
-    1,2=金 | 3=火 | 4,5=木 | 6=水 | 7,8=土
+    u_val: 上卦 (1-8)
+    l_val: 下卦 (1-8)
+    context: 'sector' (板块) 或 'stock' (个股)
     """
-    # 定义五行
     elements = {1:'金', 2:'金', 3:'火', 4:'木', 5:'木', 6:'水', 7:'土', 8:'土'}
-    u_e = elements[upper_code] # 上卦 (代表大环境/压力/结果)
-    l_e = elements[lower_code] # 下卦 (代表自身/支撑/基础)
+    u_e = elements[u_val]
+    l_e = elements[l_val]
     
-    # --- 核心判断逻辑 ---
+    # 基础分
+    score = 50
+    signal = "横盘震荡"
+    color = "orange"
+    advice = "观望"
+    comment = "多空平衡。"
+
+    # --- 逻辑判定 ---
     
-    # 1. 比和 (五行相同) -> 震荡/主力控盘
+    # 1. 比和 (同五行)
     if u_e == l_e:
-        return {
-            "signal": "⚖️ 横盘震荡",
-            "score": 50,
-            "color": "orange",
-            "comment": "多空力量平衡，方向不明。",
-            "advice": "【观望】主力可能在洗盘，不要追高，适合做T或不动。"
-        }
-    
-    # 2. 相生 (互帮互助) -> 上涨/支撑强
-    # 这里的逻辑是：下生上(泄气/回调)，上生下(支撑/利好)，木生火(利好科技)
-    
-    # 特殊吉利组合
-    if (u_e == '火' and l_e == '木'): # 木火通明
-        return {
-            "signal": "🔥 爆发拉升",
-            "score": 90,
-            "color": "red",
-            "comment": "题材热度极高，资金涌入，势头很猛。",
-            "advice": "【进攻】持股待涨，如果是热门前排股可以关注。"
-        }
-    
-    if (u_e == '土' and l_e == '金') or (l_e == '土' and u_e == '金'): # 土金相生
-        return {
-            "signal": "📈 稳健上涨",
-            "score": 80,
-            "color": "red",
-            "comment": "底部支撑非常扎实，价值回归。",
-            "advice": "【持有】趋势向好，不用担心短期波动。"
-        }
+        score = 55
+        signal = "⚖️ 蓄势整固"
+        comment = "主力高度控盘，正在清洗浮筹。"
+        advice = "【持股】只要不破位，继续持有。"
 
-    # 一般相生
-    is_generating = False
-    # 水生木, 木生火, 火生土, 土生金, 金生水
-    pairs = [('水','木'), ('木','火'), ('火','土'), ('土','金'), ('金','水')]
-    if (u_e, l_e) in pairs or (l_e, u_e) in pairs:
-        return {
-            "signal": "🌤️ 小幅上涨",
-            "score": 70,
-            "color": "red",
-            "comment": "盘面有支撑，人气在聚集。",
-            "advice": "【低吸】如果有回踩是机会，整体看多。"
-        }
-
-    # 3. 相克 (打架/冲突) -> 下跌/调整
-    # 金克木, 木克土, 土克水, 水克火, 火克金
-    
-    # 特殊凶险组合
-    if (u_e == '火' and l_e == '金'): # 火克金 (这正是汉宇集团最怕的，它是机械/金)
-        return {
-            "signal": "📉 承压回落",
-            "score": 30,
-            "color": "green",
-            "comment": "抛压很重，利好兑现，上方有套牢盘。",
-            "advice": "【减仓】建议逢高卖出，不要接飞刀。"
-        }
+    # 2. 相生 (大吉)
+    # 木生火 (3,4/5)
+    elif (u_e == '火' and l_e in ['木']) or (l_e == '火' and u_e in ['木']):
+        score = 95
+        signal = "🔥 主升浪启动"
+        color = "red"
+        comment = "木火通明，题材爆发，买盘汹涌。"
+        advice = "【猛干】趋势确立，积极做多。"
         
-    if (u_e == '水' and l_e == '火'): # 水火不容
-        return {
-            "signal": "⛈️ 大幅跳水",
-            "score": 20,
-            "color": "green",
-            "comment": "突发利空或情绪崩溃，资金出逃。",
-            "advice": "【止损】风险较大，先出来避险。"
-        }
+    # 土金相生 (1/2, 7/8)
+    elif (u_e in ['土'] and l_e in ['金']) or (l_e in ['土'] and u_e in ['金']):
+        score = 85
+        signal = "📈 稳步推升"
+        color = "red"
+        comment = "底部筹码锁定良好，价升量增。"
+        advice = "【低吸】回踩5日线是绝佳买点。"
 
-    # 其他相克
-    return {
-        "signal": "🌧️ 震荡下行",
-        "score": 40,
-        "color": "green",
-        "comment": "分歧较大，上涨乏力。",
-        "advice": "【防守】多看少动，等待局势明朗。"
-    }
+    # 其他相生
+    elif (u_e in ['水'] and l_e in ['木']) or (l_e in ['水'] and u_e in ['木']):
+        score = 75
+        signal = "🌤️ 温和反弹"
+        color = "red"
+        comment = "有资金呵护，走势强于大盘。"
+        advice = "【持有】耐心等待拉升。"
 
-# --- 算卦函数 (保持原数学逻辑) ---
-def get_hex_data_time():
+    # 3. 相克 (凶/调整)
+    # 火克金 (3, 1/2) - 汉宇最怕这个
+    elif (u_e == '火' and l_e in ['金']) or (l_e == '火' and u_e in ['金']):
+        score = 25
+        signal = "📉 抛压沉重"
+        color = "green"
+        comment = "上方套牢盘巨大，主力拉高出货。"
+        advice = "【快跑】趁反弹减仓，切勿追高。"
+        
+    # 其它相克
+    else:
+        score = 40
+        signal = "🌧️ 震荡下行"
+        color = "green"
+        comment = "分歧加大，承接乏力。"
+        advice = "【防守】不要轻易补仓，观察支撑。"
+
+    return signal, color, comment, advice, score
+
+# --- 动态算卦函数 ---
+
+def calculate_sector_hex():
+    """板块：基于日期+小时 (宏观趋势)"""
     now = get_beijing_time()
-    s = now.year + now.month + now.day
-    u = s % 8 or 8
-    l = (s + now.hour) % 8 or 8
+    # 算法：日期和 vs 日期+小时
+    date_sum = now.year + now.month + now.day
+    u = date_sum % 8 or 8
+    l = (date_sum + now.hour) % 8 or 8
     return u, l
 
-def get_hex_data_stock(code):
-    s_code = str(code).zfill(6)
-    head = sum(int(x) for x in s_code[:3])
-    tail = sum(int(x) for x in s_code[3:])
-    u = head % 8 or 8
-    l = tail % 8 or 8
+def calculate_stock_hex(code):
+    """个股：基于代码+分钟 (微观波动)"""
+    now = get_beijing_time()
+    code_str = str(code)
     
-    # 结合时辰让个股每天甚至每小时都有细微变化
-    now = get_beijing_time()
-    # 既然是日内推演，我们用【小时】来微调下卦，模拟盘中波动
-    # 但为了稳定，我们这里还是用固定算法，或者根据上下午变动
-    # 这里保持原逻辑：
+    # 基础数理
+    base_head = sum(int(x) for x in code_str[:3])
+    base_tail = sum(int(x) for x in code_str[3:])
+    
+    # !!! 关键修改：加入分钟级扰动，模拟盘中实时波动 !!!
+    # 分钟数如果是偶数，对上卦产生影响；奇数对下卦产生影响
+    minute_factor = now.minute % 3 
+    
+    u = (base_head + now.hour) % 8 or 8
+    l = (base_tail + now.minute) % 8 or 8 # 下卦随分钟剧烈变动
+    
     return u, l
 
-# --- 界面显示逻辑 ---
+# --- 界面渲染 ---
+
 now_bj = get_beijing_time()
-st.title("📊 易经看盘 (白话版)")
-st.info(f"📅 北京时间：{now_bj.strftime('%m月%d日 %H:%M')}")
+st.title("⚡ 易经实盘 V3.0")
+st.caption(f"📅 北京时间：{now_bj.strftime('%H:%M:%S')} (每分钟刷新)")
 
-# === 机器人板块 ===
+# 1. 机器人板块
 st.divider()
-st.subheader("🤖 机器人板块")
-u1, l1 = get_hex_data_time()
-res1 = get_plain_interpretation(u1, l1)
+st.subheader("🤖 机器人板块 (宏观)")
+u1, l1 = calculate_sector_hex()
+sig1, col1, com1, adv1, sc1 = get_interpretation(u1, l1)
 
-# 大字显示信号
-if res1['color'] == 'red':
-    st.error(f"### {res1['signal']}") # Streamlit里 error是红色背景
-elif res1['color'] == 'green':
-    st.success(f"### {res1['signal']}") # Streamlit里 success是绿色背景
+if col1 == 'red':
+    st.error(f"### {sig1}")
+elif col1 == 'green':
+    st.success(f"### {sig1}")
 else:
-    st.warning(f"### {res1['signal']}") # warning是黄色
+    st.warning(f"### {sig1}")
+    
+st.write(f"**分析：** {com1}")
+st.write(f"**策略：** {adv1}")
+st.caption(f"🔢 卦象底层数据：{u1} / {l1}") # 显示数据证明不同
 
-st.write(f"**🗣️ 盘面点评：** {res1['comment']}")
-st.write(f"**💡 操作建议：** {res1['advice']}")
-
-# === 汉宇集团 ===
+# 2. 汉宇集团
 st.divider()
-st.subheader("🏭 汉宇集团 (300403)")
-u2, l2 = get_hex_data_stock(300403)
-# 这里做一个特殊的微调，让汉宇集团结合当前的小时产生变化
-# 如果现在是下午(13点后)，稍微引入一点变量，模拟盘中变化
-if now_bj.hour >= 13:
-    l2 = (l2 + 1) % 8 or 8 
+st.subheader(f"🏭 汉宇集团 (300403)")
+u2, l2 = calculate_stock_hex(300403)
+sig2, col2, com2, adv2, sc2 = get_interpretation(u2, l2, context="stock")
 
-res2 = get_plain_interpretation(u2, l2)
-
-# 大字显示信号
-if res2['color'] == 'red':
-    st.error(f"### {res2['signal']}") 
-elif res2['color'] == 'green':
-    st.success(f"### {res2['signal']}")
+# 强行对比逻辑：如果个股分数高于板块
+strength = ""
+if sc2 > sc1:
+    strength = "🔥 强于板块 (龙头相)"
+elif sc2 < sc1:
+    strength = "🐢 弱于板块 (跟风)"
 else:
-    st.warning(f"### {res2['signal']}")
+    strength = "🤝 同步大盘"
 
-st.write(f"**🗣️ 个股点评：** {res2['comment']}")
-st.write(f"**💡 操作建议：** {res2['advice']}")
+st.info(f"**当前状态：{strength}**")
 
-# === 底部 ===
+if col2 == 'red':
+    st.error(f"### {sig2}")
+elif col2 == 'green':
+    st.success(f"### {sig2}")
+else:
+    st.warning(f"### {sig2}")
+
+st.write(f"**分析：** {com2}")
+st.write(f"**策略：** {adv2}")
+st.caption(f"🔢 卦象底层数据：{u2} / {l2} (随分钟变化)")
+
+# --- 刷新 ---
 st.divider()
-if st.button("🔄 刷新最新走势"):
+if st.button("🔄 点我刷新 (模拟盘中异动)"):
     st.rerun()
-
-st.caption("注：红色代表利好/上涨，绿色代表风险/下跌，黄色代表震荡。仅供娱乐。")
